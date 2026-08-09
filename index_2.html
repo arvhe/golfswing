@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Pocket Links — Mini Golf</title>
+<meta name="description" content="A mini golf course for your phone. Swing your phone like a club." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c2b1f;
+    --paper:#f2ecd8;
+    --fairway-dark:#204a32;
+    --sand-dark:#cdb069;
+    --gold:#c9a24b;
+    --danger:#c0392b;
+    --rough:#173a22;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background:var(--rough);
+    font-family:'JetBrains Mono', monospace;
+    color:var(--paper);
+    touch-action:none;
+    overscroll-behavior:none;
+  }
+  #app{ position:fixed; inset:0; height:100dvh; width:100vw; }
+  .screen{ position:absolute; inset:0; }
+  .screen.hidden{ display:none !important; }
+
+  /* ================= MENU / HOLE SELECT ================= */
+  #menuScreen, #holeSelectScreen{
+    display:flex; flex-direction:column;
+    background:var(--paper); color:var(--ink);
+  }
+  .menu-wrap{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:24px; text-align:center; gap:6px;
+  }
+  .menu-flag{ width:54px; height:54px; margin-bottom:6px; }
+  .menu-wrap h1{
+    font-family:'Fraunces', serif; font-weight:700; font-size:38px; margin:0;
+    letter-spacing:0.01em;
+  }
+  .menu-wrap .tagline{
+    font-size:13px; letter-spacing:0.05em; text-transform:uppercase;
+    color:var(--fairway-dark); margin:0 0 26px;
+  }
+  .menu-wrap .btn{ width:220px; margin-bottom:10px; }
+  .menu-footnote{
+    margin-top:22px; font-size:11px; line-height:1.6; color:var(--fairway-dark);
+    max-width:260px; letter-spacing:0.02em;
+  }
+
+  .select-header{
+    display:flex; align-items:center; gap:10px;
+    padding:16px 16px 10px;
+    border-bottom:3px dashed var(--sand-dark);
+  }
+  .select-header h2{ font-family:'Fraunces', serif; font-size:20px; margin:0; }
+  .icon-btn{
+    background:var(--fairway-dark); color:var(--paper); border:none;
+    width:34px; height:34px; border-radius:50%;
+    font-size:18px; line-height:1; cursor:pointer;
+  }
+  #holeList{ flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+  .hole-card{
+    display:flex; align-items:center; gap:14px;
+    background:#fffdf5; border:2px solid var(--sand-dark); border-radius:10px;
+    padding:12px 14px; cursor:pointer;
+  }
+  .hole-card:active{ transform:scale(0.98); }
+  .hc-num{
+    font-family:'Fraunces', serif; font-weight:700; font-size:22px;
+    background:var(--fairway-dark); color:var(--paper);
+    width:38px; height:38px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .hc-info{ flex:1; text-align:left; }
+  .hc-par{ font-family:'Fraunces', serif; font-weight:600; font-size:15px; }
+  .hc-yards{ font-size:11px; color:var(--fairway-dark); letter-spacing:0.05em; text-transform:uppercase; }
+  .hc-go{ font-size:20px; color:var(--gold); }
+  #playFullRoundBtn{ margin:6px 16px calc(14px + env(safe-area-inset-bottom)); }
+
+  /* ================= GAME SCREEN ================= */
+  #gameScreen{ display:flex; flex-direction:column; }
+
+  #hud{
+    background:var(--paper); color:var(--ink);
+    padding:10px 14px 8px;
+    border-bottom:3px dashed var(--sand-dark);
+    flex-shrink:0; z-index:5;
+  }
+  .hud-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .hud-left{ display:flex; align-items:center; gap:10px; }
+  .hole-label{ font-family:'Fraunces', serif; font-weight:700; font-size:20px; }
+  .hole-label small{
+    font-family:'JetBrains Mono', monospace; font-weight:500; font-size:12px;
+    color:var(--fairway-dark); margin-left:6px;
+  }
+  #modeToggle{
+    background:var(--fairway-dark); color:var(--paper); border:none;
+    border-radius:16px; padding:6px 12px;
+    font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700;
+    letter-spacing:0.03em; text-transform:uppercase; cursor:pointer;
+  }
+  #modeToggle:disabled{ opacity:0.4; }
+  .hud-stats{ display:flex; gap:14px; margin-top:6px; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--fairway-dark); }
+  .hud-stats b{ display:block; font-family:'Fraunces', serif; font-size:19px; color:var(--ink); font-weight:600; letter-spacing:0; }
+  .hud-stats div{ text-align:right; }
+  .hud-stats div:first-child{ text-align:left; }
+
+  #courseWrap{ position:relative; flex:1 1 auto; min-height:0; background:#bfe0e6; }
+  canvas{ display:block; width:100%; height:100%; touch-action:none; }
+
+  #toast{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    background:rgba(28,43,31,0.88); border:1px solid var(--gold); color:var(--paper);
+    padding:8px 16px; border-radius:3px; font-size:12px; letter-spacing:0.04em; text-transform:uppercase;
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; white-space:nowrap;
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(4px); }
+
+  #aimReadout{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    font-size:11px; letter-spacing:0.05em; text-transform:uppercase;
+    background:rgba(23,58,34,0.55); padding:5px 12px; border-radius:16px;
+    opacity:0; transition:opacity .2s ease; pointer-events:none;
+  }
+  #aimReadout.show{ opacity:1; }
+
+  #powerMeterWrap{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    width:110px; height:9px; border-radius:5px;
+    background:rgba(23,58,34,0.7); border:1px solid rgba(242,236,216,0.6);
+    opacity:0; transition:opacity .15s ease; overflow:hidden;
+  }
+  #powerMeterWrap.show{ opacity:1; }
+  #powerMeterFill{ height:100%; width:0%; background:var(--gold); }
+  #powerMeterFill.hot{ background:var(--danger); }
+
+  #hint{
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    font-size:11px; letter-spacing:0.04em; text-transform:uppercase; text-align:center;
+    color:var(--paper); opacity:0.75; background:rgba(23,58,34,0.55);
+    padding:6px 14px; border-radius:20px; pointer-events:none; transition:opacity .4s ease; max-width:88%;
+  }
+
+  #swingStatus{
+    position:absolute; top:46px; left:50%; transform:translateX(-50%);
+    font-size:12px; letter-spacing:0.05em; text-transform:uppercase; white-space:nowrap;
+    background:rgba(23,58,34,0.7); padding:6px 14px; border-radius:20px;
+    opacity:0; transition:opacity .2s ease; pointer-events:none;
+  }
+  #swingStatus.show{ opacity:1; }
+  #swingStatus.armed{ color:#fff2c9; animation:pulse 0.6s ease-in-out infinite alternate; }
+  @keyframes pulse{ from{opacity:0.6;} to{opacity:1;} }
+
+  /* two-thumb "grip" zones — hold both to arm the swing */
+  #gripBar{
+    position:absolute; bottom:120px; left:50%; transform:translateX(-50%);
+    width:min(230px, calc(100% - 172px)); height:5px; border-radius:3px;
+    background:rgba(242,236,216,0.28); pointer-events:none;
+  }
+  #gripZoneLeft, #gripZoneRight{
+    position:absolute; bottom:78px;
+    width:84px; height:84px; border-radius:50%;
+    background:rgba(23,58,34,0.55); border:3px solid rgba(242,236,216,0.4);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:var(--paper); user-select:none; touch-action:none;
+    transition: background .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  #gripZoneLeft{ left:16px; }
+  #gripZoneRight{ right:16px; }
+  .gz-letter{ font-family:'Fraunces', serif; font-weight:700; font-size:22px; line-height:1; }
+  .gz-cap{ font-size:8px; letter-spacing:0.06em; text-transform:uppercase; opacity:0.85; margin-top:2px; }
+  #gripZoneLeft.active, #gripZoneRight.active{
+    background:rgba(201,162,74,0.5); border-color:var(--gold); transform:scale(1.05);
+  }
+  #gripZoneLeft.locked, #gripZoneRight.locked{
+    background:var(--gold); border-color:var(--ink); color:var(--ink); transform:scale(1.1);
+  }
+
+  #clubbar{
+    flex-shrink:0; display:flex; gap:8px;
+    padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+    background:var(--paper); border-top:3px dashed var(--sand-dark); z-index:5;
+  }
+  .club-btn{
+    flex:1; background:var(--fairway-dark); color:var(--paper);
+    border:2px solid transparent; border-radius:8px;
+    padding:9px 4px 7px; text-align:center; cursor:pointer; user-select:none;
+  }
+  .club-btn .name{ font-family:'Fraunces', serif; font-weight:600; font-size:14px; display:block; }
+  .club-btn .dist{ font-size:10px; opacity:0.75; letter-spacing:0.04em; }
+  .club-btn.active{ background:var(--gold); color:var(--ink); border-color:var(--ink); }
+
+  /* ================= OVERLAY ================= */
+  #overlay{
+    position:absolute; inset:0; background:rgba(16,26,18,0.86);
+    display:flex; align-items:center; justify-content:center;
+    z-index:20; opacity:0; pointer-events:none; transition:opacity .3s ease; padding:20px;
+  }
+  #overlay.show{ opacity:1; pointer-events:auto; }
+  .card{
+    background:var(--paper); color:var(--ink); border-radius:10px;
+    padding:26px 24px 22px; max-width:340px; width:100%; text-align:center;
+    border:3px dashed var(--sand-dark);
+  }
+  .card h2{ font-family:'Fraunces', serif; font-size:26px; margin:0 0 4px; }
+  .card .subline{ font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:var(--fairway-dark); margin-bottom:16px; }
+  .score-big{ font-family:'Fraunces', serif; font-size:52px; font-weight:700; line-height:1; margin:6px 0; }
+  .score-tag{
+    display:inline-block; font-size:12px; letter-spacing:0.08em; text-transform:uppercase;
+    background:var(--fairway-dark); color:var(--paper); padding:4px 10px; border-radius:20px; margin-bottom:18px;
+  }
+  table.scorecard{ width:100%; border-collapse:collapse; margin:12px 0 20px; font-size:13px; }
+  table.scorecard th, table.scorecard td{ padding:6px 4px; border-bottom:1px solid var(--sand-dark); }
+  table.scorecard th{ text-transform:uppercase; font-size:10px; letter-spacing:0.06em; color:var(--fairway-dark); }
+  table.scorecard tr:last-child td{ border-bottom:none; font-weight:700; font-family:'Fraunces', serif; font-size:15px; }
+  .btn{
+    display:inline-block; background:var(--fairway-dark); color:var(--paper); border:none;
+    padding:12px 26px; border-radius:24px; font-family:'JetBrains Mono', monospace;
+    font-weight:700; font-size:13px; letter-spacing:0.06em; text-transform:uppercase; cursor:pointer;
+  }
+  .btn:active{ transform:scale(0.97); }
+  .btn.secondary{ background:transparent; color:var(--fairway-dark); border:2px solid var(--fairway-dark); margin-top:10px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ MAIN MENU ============ -->
+  <div id="menuScreen" class="screen">
+    <div class="menu-wrap">
+      <svg class="menu-flag" viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="56" r="5" fill="#204a32" opacity="0.25"/>
+        <rect x="30" y="10" width="3" height="46" fill="#1c2b1f"/>
+        <path d="M33 10 L54 18 L33 26 Z" fill="#c0392b"/>
+      </svg>
+      <h1>Pocket Links</h1>
+      <div class="tagline">A mini course for your phone</div>
+      <button class="btn" id="playRoundBtn" style="width:220px;">▸ Play Round</button>
+      <button class="btn secondary" id="chooseHoleBtn" style="width:220px;">Choose a Hole</button>
+      <div class="menu-footnote">📱 Swing your phone like a club to play, or use 👆 touch controls instead. Best experienced on your phone, over HTTPS.</div>
+    </div>
+  </div>
+
+  <!-- ============ HOLE SELECT ============ -->
+  <div id="holeSelectScreen" class="screen hidden">
+    <div class="select-header">
+      <button class="icon-btn" id="backToMenuBtn">‹</button>
+      <h2>Choose a Hole</h2>
+    </div>
+    <div id="holeList"></div>
+    <button class="btn" id="playFullRoundBtn">▸ Play Full Round</button>
+  </div>
+
+  <!-- ============ GAME ============ -->
+  <div id="gameScreen" class="screen hidden">
+    <div id="hud">
+      <div class="hud-top">
+        <div class="hud-left">
+          <button class="icon-btn" id="gameBackBtn">‹</button>
+          <div class="hole-label">Hole <span id="holeNum">1</span><small id="holePar">Par 3</small></div>
+        </div>
+        <button id="modeToggle">📱 Motion</button>
+      </div>
+      <div class="hud-stats">
+        <div>To Pin<b id="statYardage">150y</b></div>
+        <div>Strokes<b id="statStrokes">0</b></div>
+        <div>Lie<b id="statLie">Tee</b></div>
+      </div>
+    </div>
+
+    <div id="courseWrap">
+      <canvas id="three-canvas"></canvas>
+      <div id="toast"></div>
+      <div id="aimReadout"></div>
+      <div id="powerMeterWrap"><div id="powerMeterFill"></div></div>
+      <div id="swingStatus"></div>
+      <div id="hint"></div>
+      <div id="gripBar" class="motion-only"></div>
+      <div id="gripZoneLeft" class="motion-only"><span class="gz-letter">L</span><span class="gz-cap">thumb</span></div>
+      <div id="gripZoneRight" class="motion-only"><span class="gz-letter">R</span><span class="gz-cap">thumb</span></div>
+    </div>
+
+    <div id="clubbar">
+      <div class="club-btn" data-club="driver"><span class="name">Driver</span><span class="dist">~230y</span></div>
+      <div class="club-btn" data-club="iron"><span class="name">Iron</span><span class="dist">~150y</span></div>
+      <div class="club-btn active" data-club="wedge"><span class="name">Wedge</span><span class="dist">~80y</span></div>
+      <div class="club-btn" data-club="putter"><span class="name">Putter</span><span class="dist">~15y</span></div>
+    </div>
+  </div>
+
+  <div id="overlay"><div class="card" id="cardContent"></div></div>
+
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* =========================================================
+   COURSE DATA  (units: yards)
+========================================================= */
+const HOLES = [
+  {
+    par: 3,
+    length: 150,
+    courseHalfWidth: 26,
+    fairway: ()=>({ cx: 0, hw: 17 }),
+    green: { cx: 0, y: 150, r: 12 },
+    bunkers: [ { cx: 9, y: 143, rx: 6, ry: 5 } ],
+    water:   [ { cx: -12, y: 133, rx: 6.5, ry: 5.5 } ]
+  },
+  {
+    par: 4,
+    length: 380,
+    courseHalfWidth: 32,
+    fairway: (y)=>{
+      const t = Math.min(1, Math.max(0, y/300));
+      return { cx: 10*Math.sin(t*Math.PI/2), hw: 15 - 3*t };
+    },
+    green: { cx: 12, y: 380, r: 11 },
+    bunkers: [ { cx: 3, y: 372, rx: 5, ry: 4 }, { cx: 20, y: 376, rx: 5, ry: 4 } ],
+    water:   [ { cx: 22, y: 210, rx: 11, ry: 22 } ]
+  },
+  {
+    par: 5,
+    length: 520,
+    courseHalfWidth: 34,
+    fairway: (y)=>{
+      const t1 = Math.min(1, Math.max(0, (y-40)/200));
+      const t2 = Math.min(1, Math.max(0, (y-300)/180));
+      const cx = 13*Math.sin(t1*Math.PI/2) - 10*Math.sin(t2*Math.PI/2);
+      const hw = 15 - 2*Math.sin(t1*Math.PI/2) - 2*Math.sin(t2*Math.PI/2);
+      return { cx, hw: Math.max(9, hw) };
+    },
+    green: { cx: 3, y: 520, r: 12 },
+    bunkers: [ { cx: 6, y: 190, rx: 6, ry: 5 }, { cx: 8, y: 495, rx: 5, ry: 4 } ],
+    water:   [ { cx: 3, y: 500, rx: 18, ry: 10 } ]
+  },
+  {
+    par: 3,
+    length: 165,
+    courseHalfWidth: 36,
+    fairway: ()=>({ cx: 6, hw: 8 }),
+    green: { cx: 6, y: 165, r: 11 },
+    bunkers: [ { cx: 14, y: 158, rx: 5, ry: 4 } ],
+    water:   [ { cx: -16, y: 85, rx: 13, ry: 92 }, { cx: 25, y: 85, rx: 11, ry: 92 } ]
+  }
+];
+
+const CLUBS = {
+  driver: { label:"Driver", v0:2.75, spreadDeg:8,   maxYards:230, swing:{min:6,  max:26}, flight:{carryFrac:0.72, heightCoef:0.055} },
+  iron:   { label:"Iron",   v0:1.80, spreadDeg:4.5, maxYards:150, swing:{min:5,  max:20}, flight:{carryFrac:0.68, heightCoef:0.080} },
+  wedge:  { label:"Wedge",  v0:0.97, spreadDeg:3,   maxYards:80,  swing:{min:3,  max:13}, flight:{carryFrac:0.82, heightCoef:0.130} },
+  putter: { label:"Putter", v0:0.23, spreadDeg:1,   maxYards:15,  swing:{min:0.8,max:5},  flight:{carryFrac:0,    heightCoef:0} }
+};
+
+const FRICTION = { fairway:0.988, green:0.984, rough:0.950, bunker:0.840 };
+
+const HOLE_RADIUS = 0.6;
+const STOP_SPEED = 0.015;
+const CAPTURE_SPEED = 0.28;
+const MAX_AIM_RAD = 40 * Math.PI/180;
+const AIM_DRAG_PX_FOR_MAX = 140;
+const BALL_RADIUS_YD = 0.25;
+
+/* =========================================================
+   STATE
+========================================================= */
+let screen = 'menu';        // 'menu' | 'holeSelect' | 'playing'
+let playMode = 'round';     // 'round' | 'practice'
+let holeIdx = 0;
+let hole = HOLES[0];
+let ball = { x:0, y:0, vx:0, vy:0, moving:false, traveled:0, carryYards:0, flightHeightMax:0 };
+let shotStartPos = { x:0, y:0 };
+let strokes = 0;
+let scores = [];
+let currentClub = "wedge";
+
+let aiming = false;
+let aimStart = null, aimCurrent = null;
+const MAX_DRAG_PX = 130;
+const MIN_POWER = 0.06;
+
+let baseAngleToPin = 0;
+let aimOffset = 0;
+let aimDragging = false;
+let aimDragStartX = 0, aimBaseOffsetAtDragStart = 0;
+
+const motionSupported = (typeof window.DeviceMotionEvent !== 'undefined');
+let mode = motionSupported ? 'motion' : 'touch';
+let motionPermissionGranted = false;
+let motionListenerAttached = false;
+
+let swingArmed=false, swingHasStarted=false, swingPeak=0, swingDecayCount=0, swingTimeoutHandle=null;
+let gravityBaseline = 9.81;
+let motionPromptResolved = false; // has the user answered the upfront permission prompt this session?
+
+/* ---- three.js ---- */
+let threeInitialized = false;
+let renderer, scene, camera, courseGroup, ballMesh, shadowMesh;
+let aimArrow = null;
+let rendererAspect = 16/9;
+let camPanCenter = new THREE.Vector3(0,0,0);
+let camViewYards = 58, camViewYardsTarget = 58;
+const CAM_DIR = new THREE.Vector3(0.55, 1.15, 1.5).normalize();
+const CAM_DIST = 140;
+
+function worldToThree(x,y,h){ return new THREE.Vector3(x, h||0, -y); }
+
+function resetBallToTee(){
+  ball.x=0; ball.y=0; ball.vx=0; ball.vy=0; ball.moving=false;
+  ball.traveled=0; ball.carryYards=0; ball.flightHeightMax=0;
+}
+function recomputeAim(){
+  baseAngleToPin = Math.atan2(hole.green.cx-ball.x, hole.green.y-ball.y);
+  aimOffset = 0;
+}
+function currentAimAngle(){ return baseAngleToPin + aimOffset; }
+
+/* =========================================================
+   TERRAIN
+========================================================= */
+function inEllipse(x,y,e){ const dx=(x-e.cx)/e.rx, dy=(y-e.y)/e.ry; return dx*dx+dy*dy<=1; }
+function terrainAt(x,y){
+  if (Math.abs(x) > hole.courseHalfWidth + 2 || y < -3 || y > hole.length + 25) return 'ob';
+  const g = hole.green;
+  const dgx=x-g.cx, dgy=y-g.y;
+  if (dgx*dgx+dgy*dgy <= g.r*g.r) return 'green';
+  for (const b of hole.bunkers){ if (inEllipse(x,y,b)) return 'bunker'; }
+  for (const w of hole.water){ if (inEllipse(x,y,w)) return 'water'; }
+  const fw = hole.fairway(y);
+  if (Math.abs(x-fw.cx) <= fw.hw && y >= -2 && y <= hole.length+2) return 'fairway';
+  return 'rough';
+}
+function lieName(t){
+  switch(t){
+    case 'fairway': return 'Fairway';
+    case 'green': return 'Green';
+    case 'bunker': return 'Bunker';
+    case 'rough': return 'Rough';
+    case 'water': return 'Water';
+    case 'ob': return 'O.B.';
+    default: return '—';
+  }
+}
+
+/* =========================================================
+   THREE.JS SETUP
+========================================================= */
+function initThree(){
+  const canvasEl = document.getElementById('three-canvas');
+  renderer = new THREE.WebGLRenderer({ canvas:canvasEl, antialias:true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color('#bfe0e6');
+  scene.fog = new THREE.Fog('#bfe0e6', 140, 420);
+
+  camera = new THREE.OrthographicCamera(-1,1,1,-1, 1, 900);
+
+  const hemi = new THREE.HemisphereLight('#dff1f5', '#274d34', 0.95);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight('#fff2d6', 1.0);
+  sun.position.set(-40,60,50);
+  scene.add(sun);
+
+  courseGroup = new THREE.Group();
+  scene.add(courseGroup);
+
+  const ballGeo = new THREE.SphereGeometry(BALL_RADIUS_YD, 16, 16);
+  const ballMat = new THREE.MeshStandardMaterial({ color:'#f8f6ee', roughness:0.4 });
+  ballMesh = new THREE.Mesh(ballGeo, ballMat);
+  scene.add(ballMesh);
+
+  const shadowGeo = new THREE.CircleGeometry(BALL_RADIUS_YD*1.5, 16);
+  shadowGeo.rotateX(-Math.PI/2);
+  const shadowMat = new THREE.MeshBasicMaterial({ color:'#0c1610', transparent:true, opacity:0.35, depthWrite:false });
+  shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+  scene.add(shadowMesh);
+
+  aimArrow = buildAimArrow();
+  scene.add(aimArrow.shaft, aimArrow.head);
+
+  window.addEventListener('resize', fitRenderer);
+  fitRenderer();
+  threeInitialized = true;
+}
+
+function buildAimArrow(){
+  const mat = new THREE.MeshBasicMaterial({ color:'#c9a24b', transparent:true, opacity:0.9, depthTest:false });
+  const shaftGeo = new THREE.BoxGeometry(1,0.06,0.06);
+  shaftGeo.translate(0.5,0,0);
+  const shaft = new THREE.Mesh(shaftGeo, mat);
+  shaft.renderOrder = 5;
+  const headGeo = new THREE.ConeGeometry(0.22,0.55,8);
+  headGeo.rotateZ(-Math.PI/2);
+  const head = new THREE.Mesh(headGeo, mat.clone());
+  head.renderOrder = 5;
+  return { shaft, head };
+}
+function updateAimArrowVisual(angle, lengthYards, visible){
+  aimArrow.shaft.visible = visible;
+  aimArrow.head.visible = visible;
+  if (!visible) return;
+  const rotY = Math.PI/2 - angle;
+  aimArrow.shaft.position.set(ball.x, 0.05, -ball.y);
+  aimArrow.shaft.rotation.y = rotY;
+  aimArrow.shaft.scale.set(Math.max(0.6,lengthYards), 1, 1);
+  const dirX = Math.sin(angle), dirZ = -Math.cos(angle);
+  aimArrow.head.position.set(ball.x+dirX*lengthYards, 0.05, -ball.y+dirZ*lengthYards);
+  aimArrow.head.rotation.y = rotY;
+}
+
+function fitRenderer(){
+  if (!threeInitialized) return;
+  const wrap = document.getElementById('courseWrap');
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if (w<2||h<2) return;
+  renderer.setSize(w,h,false);
+  rendererAspect = w/h;
+  updateCameraFrustum();
+}
+function updateCameraFrustum(){
+  const halfH = camViewYards/2;
+  const halfW = halfH*rendererAspect;
+  camera.left=-halfW; camera.right=halfW; camera.top=halfH; camera.bottom=-halfH;
+  camera.updateProjectionMatrix();
+}
+function updateCameraTransform(){
+  const onGreen = terrainAt(ball.x,ball.y)==='green';
+  camViewYardsTarget = onGreen ? 22 : 58;
+  camViewYards += (camViewYardsTarget-camViewYards)*0.08;
+  updateCameraFrustum();
+
+  const leadYards = camViewYards*0.30;
+  const targetWorld = worldToThree(ball.x, ball.y+leadYards, 0);
+  camPanCenter.lerp(targetWorld, 0.10);
+
+  camera.position.copy(camPanCenter).addScaledVector(CAM_DIR, CAM_DIST);
+  camera.lookAt(camPanCenter);
+}
+
+/* =========================================================
+   COURSE MESH BUILDING
+========================================================= */
+function clearCourseGroup(){
+  while (courseGroup.children.length){
+    const obj = courseGroup.children.pop();
+    disposeObject(obj);
+  }
+}
+function disposeObject(obj){
+  obj.traverse ? obj.traverse(o=>{
+    if (o.geometry) o.geometry.dispose();
+    if (o.material){ Array.isArray(o.material) ? o.material.forEach(m=>m.dispose()) : o.material.dispose(); }
+  }) : null;
+}
+
+function buildCourseMeshes(){
+  clearCourseGroup();
+
+  const roughGeo = new THREE.PlaneGeometry(420, hole.length+280);
+  roughGeo.rotateX(-Math.PI/2);
+  const roughMesh = new THREE.Mesh(roughGeo, new THREE.MeshStandardMaterial({ color:'#204a32', flatShading:true, roughness:1 }));
+  roughMesh.position.set(0,0,-(hole.length/2));
+  courseGroup.add(roughMesh);
+
+  courseGroup.add(buildFairwayMesh());
+
+  hole.bunkers.forEach(b=> courseGroup.add(buildEllipseMesh(b, '#e3c98a', 0.020)));
+  hole.water.forEach(w=> courseGroup.add(buildEllipseMesh(w, '#3d84a8', 0.018)));
+
+  courseGroup.add(buildCircleMesh(hole.green.cx, hole.green.y, hole.green.r, '#3f8156', 0.024));
+  courseGroup.add(buildCircleMesh(hole.green.cx, hole.green.y, HOLE_RADIUS, '#0c1610', 0.026));
+
+  courseGroup.add(buildFlag());
+  courseGroup.add(buildTrees());
+}
+
+function buildFairwayMesh(){
+  const positions=[], indices=[];
+  const step=4;
+  const ys=[];
+  for (let y=-2; y<=hole.length+2; y+=step) ys.push(y);
+  if (ys[ys.length-1] < hole.length+2) ys.push(hole.length+2);
+  ys.forEach((y)=>{
+    const fw = hole.fairway(y);
+    positions.push(fw.cx-fw.hw, 0.015, -y);
+    positions.push(fw.cx+fw.hw, 0.015, -y);
+  });
+  for (let i=0;i<ys.length-1;i++){
+    const a=i*2,b=i*2+1,c=(i+1)*2,d=(i+1)*2+1;
+    indices.push(a,c,b, b,c,d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color:'#2f6b45', flatShading:true, roughness:0.95 });
+  return new THREE.Mesh(geo, mat);
+}
+function buildEllipseMesh(e, colorHex, heightY){
+  const geo = new THREE.CircleGeometry(1,28);
+  geo.rotateX(-Math.PI/2);
+  const mat = new THREE.MeshStandardMaterial({ color:colorHex, flatShading:true, roughness:0.9 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(e.cx, heightY, -e.y);
+  mesh.scale.set(e.rx, 1, e.ry);
+  return mesh;
+}
+function buildCircleMesh(cx,y,r,colorHex,heightY){
+  const geo = new THREE.CircleGeometry(r,32);
+  geo.rotateX(-Math.PI/2);
+  const mat = new THREE.MeshStandardMaterial({ color:colorHex, flatShading:true, roughness:0.85 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(cx, heightY, -y);
+  return mesh;
+}
+function buildFlag(){
+  const g = new THREE.Group();
+  const poleGeo = new THREE.CylinderGeometry(0.03,0.03,3.2,6);
+  poleGeo.translate(0,1.6,0);
+  g.add(new THREE.Mesh(poleGeo, new THREE.MeshStandardMaterial({ color:'#f2ecd8' })));
+  const flagGeo = new THREE.BufferGeometry();
+  const fpos = new Float32Array([0,3.1,0, 0.9,2.85,0, 0,2.6,0]);
+  flagGeo.setAttribute('position', new THREE.Float32BufferAttribute(fpos,3));
+  flagGeo.setIndex([0,1,2]);
+  flagGeo.computeVertexNormals();
+  g.add(new THREE.Mesh(flagGeo, new THREE.MeshBasicMaterial({ color:'#c0392b', side:THREE.DoubleSide })));
+  g.position.set(hole.green.cx, 0.03, -hole.green.y);
+  return g;
+}
+function buildTrees(){
+  const g = new THREE.Group();
+  let seed = holeIdx*97 + 13;
+  function rnd(){ seed = (seed*1103515245 + 12345) & 0x7fffffff; return (seed%10000)/10000; }
+  const trunkMat = new THREE.MeshStandardMaterial({ color:'#4a3524', flatShading:true });
+  const leafMat = new THREE.MeshStandardMaterial({ color:'#1f5230', flatShading:true });
+  const count = 26;
+  for (let i=0;i<count;i++){
+    const y = rnd()*(hole.length+20)-5;
+    const fw = hole.fairway(y);
+    const side = rnd()<0.5 ? -1 : 1;
+    const x = fw.cx + side*(fw.hw + 4 + rnd()*14);
+    if (Math.abs(x) > hole.courseHalfWidth-2) continue;
+    const s = 0.7 + rnd()*0.6;
+    const tree = new THREE.Group();
+    const trunkGeo = new THREE.CylinderGeometry(0.12*s,0.15*s,1.4*s,6);
+    trunkGeo.translate(0,0.7*s,0);
+    tree.add(new THREE.Mesh(trunkGeo, trunkMat));
+    const leafGeo = new THREE.ConeGeometry(1.1*s,2.6*s,7);
+    leafGeo.translate(0,2.3*s,0);
+    tree.add(new THREE.Mesh(leafGeo, leafMat));
+    tree.position.set(x,0,-y);
+    g.add(tree);
+  }
+  return g;
+}
+
+/* =========================================================
+   BALL VISUAL SYNC
+========================================================= */
+function syncBallVisual(stepDist){
+  ball.traveled += stepDist;
+  let heightYards = 0;
+  if (ball.carryYards>0 && ball.traveled < ball.carryYards){
+    heightYards = ball.flightHeightMax * Math.sin(Math.PI*Math.min(1, ball.traveled/ball.carryYards));
+  }
+  ballMesh.position.set(ball.x, BALL_RADIUS_YD+heightYards, -ball.y);
+  shadowMesh.position.set(ball.x, 0.006, -ball.y);
+  const shrink = Math.min(0.7, heightYards*0.05);
+  shadowMesh.scale.setScalar(1-shrink);
+  shadowMesh.material.opacity = 0.35*(1-shrink*0.8);
+
+  if (stepDist>0){
+    const speedMag = Math.hypot(ball.vx,ball.vy) || 1;
+    const dirX = ball.vx/speedMag, dirZ = -ball.vy/speedMag;
+    const rollAxis = new THREE.Vector3(-dirZ,0,dirX);
+    if (rollAxis.lengthSq()>0.0001){
+      rollAxis.normalize();
+      ballMesh.rotateOnWorldAxis(rollAxis, stepDist/BALL_RADIUS_YD);
+    }
+  }
+}
+
+/* =========================================================
+   POINTER INPUT (aiming)
+========================================================= */
+const canvasEl = document.getElementById('three-canvas');
+canvasEl.addEventListener('pointerdown', (e)=>{
+  if (screen!=='playing' || ball.moving) return;
+  hideHint();
+  if (mode === 'touch'){
+    aiming = true;
+    aimStart = {x:e.clientX,y:e.clientY};
+    aimCurrent = {x:e.clientX,y:e.clientY};
+  } else {
+    aimDragging = true;
+    aimDragStartX = e.clientX;
+    aimBaseOffsetAtDragStart = aimOffset;
+  }
+});
+canvasEl.addEventListener('pointermove', (e)=>{
+  if (screen!=='playing') return;
+  if (mode === 'touch'){
+    if (!aiming) return;
+    aimCurrent = {x:e.clientX,y:e.clientY};
+  } else {
+    if (!aimDragging) return;
+    const dx = e.clientX - aimDragStartX;
+    let off = aimBaseOffsetAtDragStart + (dx/AIM_DRAG_PX_FOR_MAX)*MAX_AIM_RAD;
+    off = Math.max(-MAX_AIM_RAD, Math.min(MAX_AIM_RAD, off));
+    aimOffset = off;
+  }
+});
+function endTouchAim(){
+  if (!aiming) return;
+  aiming = false;
+  const dx = aimCurrent.x-aimStart.x, dy = aimCurrent.y-aimStart.y;
+  const dragLen = Math.hypot(dx,dy);
+  const power = Math.min(dragLen,MAX_DRAG_PX)/MAX_DRAG_PX;
+  if (power < MIN_POWER) return;
+  const ang = Math.atan2(dy,dx) + Math.PI;
+  touchFireShot(ang, power);
+}
+canvasEl.addEventListener('pointerup', ()=>{
+  if (screen!=='playing') return;
+  if (mode === 'touch') endTouchAim();
+  else aimDragging = false;
+});
+canvasEl.addEventListener('pointercancel', ()=>{ aiming=false; aimDragging=false; });
+
+function hideHint(){ document.getElementById('hint').style.opacity = 0; }
+
+function updateAimVisualPerFrame(){
+  const readout = document.getElementById('aimReadout');
+  const pmWrap = document.getElementById('powerMeterWrap');
+  const pmFill = document.getElementById('powerMeterFill');
+
+  if (ball.moving){
+    updateAimArrowVisual(0,0,false);
+    readout.classList.remove('show');
+    pmWrap.classList.remove('show');
+    return;
+  }
+  if (mode === 'motion'){
+    pmWrap.classList.remove('show');
+    const len = 5 + 8*(CLUBS[currentClub].maxYards/230);
+    updateAimArrowVisual(currentAimAngle(), len, true);
+    const deg = Math.round(aimOffset*180/Math.PI);
+    readout.textContent = deg===0 ? 'Straight at pin' : (deg>0 ? deg+'° right' : (-deg)+'° left');
+    readout.classList.add('show');
+  } else if (mode === 'touch' && aiming){
+    readout.classList.remove('show');
+    const dx = aimCurrent.x-aimStart.x, dy = aimCurrent.y-aimStart.y;
+    const dragLen = Math.min(Math.hypot(dx,dy), MAX_DRAG_PX);
+    const power = dragLen/MAX_DRAG_PX;
+    const shotAngScreen = Math.atan2(dy,dx) + Math.PI;
+    const vx = Math.cos(shotAngScreen), vyW = -Math.sin(shotAngScreen);
+    const compassAngle = Math.atan2(vx,vyW);
+    updateAimArrowVisual(compassAngle, 3+power*10, true);
+    pmWrap.classList.add('show');
+    pmFill.style.width = (power*100)+'%';
+    pmFill.classList.toggle('hot', power>0.9);
+  } else {
+    updateAimArrowVisual(0,0,false);
+    readout.classList.remove('show');
+    pmWrap.classList.remove('show');
+  }
+}
+
+/* =========================================================
+   CLUB SELECT / MODE TOGGLE
+========================================================= */
+document.querySelectorAll('.club-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if (ball.moving || swingArmed) return;
+    document.querySelectorAll('.club-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentClub = btn.dataset.club;
+  });
+});
+
+const modeBtn = document.getElementById('modeToggle');
+modeBtn.addEventListener('click', ()=>{
+  if (!motionSupported || ball.moving || swingArmed) return;
+  mode = (mode==='motion') ? 'touch' : 'motion';
+  applyModeUI();
+  if (mode==='motion' && needsExplicitMotionPermission() && !motionPermissionGranted){
+    showMotionPermissionCard();
+  }
+});
+function applyModeUI(){
+  const hint = document.getElementById('hint');
+  if (!motionSupported){
+    modeBtn.disabled = true;
+    modeBtn.textContent = '👆 Touch only';
+    setMotionOnlyVisible(false);
+    hint.textContent = 'Drag back from the ball to aim · release to swing';
+  } else if (mode === 'motion'){
+    modeBtn.textContent = '📱 Motion';
+    setMotionOnlyVisible(true);
+    unlockGrip();
+    hint.textContent = 'Drag left/right to aim, then grip both sides like a club and swing';
+  } else {
+    modeBtn.textContent = '👆 Touch';
+    setMotionOnlyVisible(false);
+    hint.textContent = 'Drag back from the ball to aim · release to swing';
+  }
+  hint.style.opacity = 0.75;
+}
+function setMotionOnlyVisible(visible){
+  document.querySelectorAll('.motion-only').forEach(el=>{ el.style.display = visible ? '' : 'none'; });
+  if (!visible) setSwingStatus('', false);
+}
+
+/* =========================================================
+   MOTION SWING DETECTION
+========================================================= */
+const swingStatusEl = document.getElementById('swingStatus');
+const gripLeftEl = document.getElementById('gripZoneLeft');
+const gripRightEl = document.getElementById('gripZoneRight');
+let leftGripDown = false, rightGripDown = false;
+
+function setSwingStatus(text, armed){
+  swingStatusEl.textContent = text;
+  swingStatusEl.classList.toggle('show', !!text);
+  swingStatusEl.classList.toggle('armed', !!armed);
+}
+function unlockGrip(){
+  leftGripDown = false; rightGripDown = false;
+  gripLeftEl.classList.remove('active','locked');
+  gripRightEl.classList.remove('active','locked');
+  if (mode==='motion' && screen==='playing') setSwingStatus('Grip both sides to swing', false);
+}
+function refreshGripStatus(){
+  if (swingArmed) return; // "Swing now!" already showing — don't override
+  if (leftGripDown && rightGripDown) return; // about to arm
+  if (leftGripDown || rightGripDown) setSwingStatus('Now grip the other side too', false);
+  else setSwingStatus('Grip both sides to swing', false);
+}
+
+function ensureMotionPermission(){
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function'){
+    return DeviceMotionEvent.requestPermission().then(state => state === 'granted');
+  }
+  return Promise.resolve(true);
+}
+function needsExplicitMotionPermission(){
+  return motionSupported && typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function';
+}
+
+/* ---- upfront permission prompt, shown as soon as the site opens ---- */
+function maybePromptMotionPermission(){
+  if (motionPromptResolved || motionPermissionGranted) return;
+  if (!needsExplicitMotionPermission()) { motionPromptResolved = true; return; }
+  showMotionPermissionCard();
+}
+function showMotionPermissionCard(){
+  const card = document.getElementById('cardContent');
+  card.innerHTML = `
+    <div class="subline">Before you start</div>
+    <h2>Enable Motion</h2>
+    <p style="font-size:13px;line-height:1.55;margin:0 0 20px;">
+      Pocket Links uses your phone's motion sensors so you can swing it
+      like a real club. Tap below, then choose <b>Allow</b> in the
+      prompt that appears.
+    </p>
+    <button class="btn" id="enableMotionBtn">Enable Motion</button><br/>
+    <button class="btn secondary" id="skipMotionBtn">Use Touch Controls Instead</button>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('enableMotionBtn').addEventListener('click', async ()=>{
+    let granted = true;
+    try { granted = await ensureMotionPermission(); } catch(err){ granted = false; }
+    motionPermissionGranted = granted;
+    motionPromptResolved = true;
+    if (granted){
+      if (!motionListenerAttached){
+        window.addEventListener('devicemotion', handleMotion);
+        motionListenerAttached = true;
+      }
+      mode = 'motion';
+      document.getElementById('overlay').classList.remove('show');
+      applyModeUI();
+    } else {
+      showMotionDeniedCard();
+    }
+  }, {once:true});
+  document.getElementById('skipMotionBtn').addEventListener('click', ()=>{
+    motionPromptResolved = true;
+    mode = 'touch';
+    document.getElementById('overlay').classList.remove('show');
+    applyModeUI();
+  }, {once:true});
+}
+function showMotionDeniedCard(){
+  const card = document.getElementById('cardContent');
+  card.innerHTML = `
+    <div class="subline">Motion access is off</div>
+    <h2>No worries</h2>
+    <p style="font-size:13px;line-height:1.55;margin:0 0 20px;">
+      If you didn't see a prompt just now, this site's motion access was
+      already turned off. You can turn it back on in
+      <b>Settings ▸ Safari ▸ Motion &amp; Orientation Access</b>
+      (or <b>Settings ▸ Privacy &amp; Security ▸ Motion &amp; Fitness</b>),
+      then reload the page. Until then, touch controls work great too.
+    </p>
+    <button class="btn" id="deniedOkBtn">Use Touch Controls</button>
+  `;
+  mode = 'touch';
+  document.getElementById('deniedOkBtn').addEventListener('click', ()=>{
+    document.getElementById('overlay').classList.remove('show');
+    applyModeUI();
+  }, {once:true});
+}
+
+async function checkGripAndArm(){
+  if (mode!=='motion' || screen!=='playing') return;
+  if (ball.moving || swingArmed) return;
+  if (!(leftGripDown && rightGripDown)) return;
+  if (!motionPermissionGranted){
+    let granted = true;
+    try { granted = await ensureMotionPermission(); } catch(err){ granted = false; }
+    motionPermissionGranted = granted;
+    if (!granted){
+      setSwingStatus('Motion access denied — switch to Touch mode above', false);
+      return;
+    }
+    if (!motionListenerAttached){
+      window.addEventListener('devicemotion', handleMotion);
+      motionListenerAttached = true;
+    }
+  }
+  armSwing();
+}
+
+function gripPointerDown(which, e){
+  if (mode!=='motion' || screen!=='playing') return;
+  e.preventDefault();
+  const el = which==='left' ? gripLeftEl : gripRightEl;
+  el.classList.add('active');
+  if (which==='left') leftGripDown = true; else rightGripDown = true;
+  refreshGripStatus();
+  checkGripAndArm();
+}
+function gripPointerUp(which){
+  const el = which==='left' ? gripLeftEl : gripRightEl;
+  el.classList.remove('active');
+  if (which==='left') leftGripDown = false; else rightGripDown = false;
+  refreshGripStatus();
+}
+gripLeftEl.addEventListener('pointerdown', (e)=>gripPointerDown('left', e));
+gripLeftEl.addEventListener('pointerup', ()=>gripPointerUp('left'));
+gripLeftEl.addEventListener('pointercancel', ()=>gripPointerUp('left'));
+gripRightEl.addEventListener('pointerdown', (e)=>gripPointerDown('right', e));
+gripRightEl.addEventListener('pointerup', ()=>gripPointerUp('right'));
+gripRightEl.addEventListener('pointercancel', ()=>gripPointerUp('right'));
+
+function currentSwingThresholds(){ return CLUBS[currentClub].swing; }
+
+function armSwing(){
+  swingArmed = true; swingHasStarted = false; swingPeak = 0; swingDecayCount = 0;
+  gripLeftEl.classList.add('locked');
+  gripRightEl.classList.add('locked');
+  setSwingStatus('Swing now!', true);
+  clearTimeout(swingTimeoutHandle);
+  swingTimeoutHandle = setTimeout(()=>{
+    if (!swingArmed) return;
+    swingArmed = false;
+    const th = currentSwingThresholds();
+    if (swingHasStarted && swingPeak > th.min*0.5){ completeSwing(); }
+    else { unlockGrip(); setSwingStatus('No swing detected — grip both sides to try again', false); }
+  }, 2500);
+}
+
+function handleMotion(e){
+  if (!swingArmed) return;
+  let ax,ay,az, usingGravityIncl=false;
+  if (e.acceleration && e.acceleration.x != null){
+    ax=e.acceleration.x; ay=e.acceleration.y; az=e.acceleration.z;
+  } else if (e.accelerationIncludingGravity){
+    ax=e.accelerationIncludingGravity.x; ay=e.accelerationIncludingGravity.y; az=e.accelerationIncludingGravity.z;
+    usingGravityIncl = true;
+  } else return;
+
+  let mag = Math.sqrt(ax*ax+ay*ay+az*az);
+  if (usingGravityIncl){
+    gravityBaseline += (mag-gravityBaseline)*0.02;
+    mag = Math.abs(mag-gravityBaseline);
+  }
+  const th = currentSwingThresholds();
+  const startThresh = th.min*0.5;
+  if (!swingHasStarted){
+    if (mag > startThresh){ swingHasStarted=true; swingPeak=mag; swingDecayCount=0; }
+  } else {
+    if (mag > swingPeak){ swingPeak=mag; swingDecayCount=0; }
+    else {
+      swingDecayCount++;
+      if (swingDecayCount>4 && swingPeak > startThresh*1.3){
+        swingArmed=false; clearTimeout(swingTimeoutHandle); completeSwing();
+      }
+    }
+  }
+}
+
+function completeSwing(){
+  const th = currentSwingThresholds();
+  let power = (swingPeak-th.min)/(th.max-th.min);
+  power = Math.max(0.12, Math.min(1, power));
+  setSwingStatus('Swing power ' + Math.round(power*100) + '%', false);
+  motionFireShot(currentAimAngle(), power);
+  setTimeout(()=>{ if (!ball.moving) unlockGrip(); }, 1400);
+}
+
+/* =========================================================
+   SHOOTING / PHYSICS
+========================================================= */
+function launchBall(vx, vy, power){
+  shotStartPos = { x: ball.x, y: ball.y };
+  ball.vx = vx; ball.vy = vy; ball.moving = true;
+  const club = CLUBS[currentClub];
+  ball.traveled = 0;
+  ball.carryYards = club.flight.carryFrac>0 ? power*club.maxYards*club.flight.carryFrac : 0;
+  ball.flightHeightMax = club.flight.heightCoef * ball.carryYards;
+  strokes++;
+  updateHUD();
+}
+function touchFireShot(finalAngleScreen, power){
+  if (ball.moving) return;
+  const club = CLUBS[currentClub];
+  const spreadRad = club.spreadDeg*Math.PI/180;
+  const missAngle = (Math.random()-0.5)*2*spreadRad;
+  const finalAngle = finalAngleScreen + missAngle;
+  const speed = club.v0*power;
+  launchBall(Math.cos(finalAngle)*speed, -Math.sin(finalAngle)*speed, power);
+}
+function motionFireShot(aimAngle, power){
+  if (ball.moving) return;
+  const club = CLUBS[currentClub];
+  const spreadRad = club.spreadDeg*Math.PI/180;
+  const missAngle = (Math.random()-0.5)*2*spreadRad;
+  const finalAim = aimAngle + missAngle;
+  const speed = club.v0*power;
+  launchBall(Math.sin(finalAim)*speed, Math.cos(finalAim)*speed, power);
+}
+
+function physicsStep(dt){
+  if (!ball.moving) return 0;
+  let totalDist = 0;
+  const steps = Math.max(1, Math.round(dt/16.67));
+  const subDt = dt/steps;
+  for (let i=0;i<steps;i++){
+    const dx = ball.vx*(subDt/16.67), dy = ball.vy*(subDt/16.67);
+    ball.x += dx; ball.y += dy;
+    totalDist += Math.hypot(dx,dy);
+
+    const t = terrainAt(ball.x, ball.y);
+    if (t==='water' || t==='ob'){ penalizeAndReset(t); return totalDist; }
+
+    const g = hole.green;
+    const dgx=ball.x-g.cx, dgy=ball.y-g.y;
+    const distToHole = Math.hypot(dgx,dgy);
+    const speed = Math.hypot(ball.vx,ball.vy);
+    if (distToHole<HOLE_RADIUS && speed<CAPTURE_SPEED){ holeComplete(); return totalDist; }
+
+    const decayBase = FRICTION[t] || FRICTION.rough;
+    const decay = Math.pow(decayBase, subDt/16.67);
+    ball.vx *= decay; ball.vy *= decay;
+    const sp = Math.hypot(ball.vx,ball.vy);
+    if (sp<STOP_SPEED){ ball.vx=0; ball.vy=0; ball.moving=false; onBallStopped(); break; }
+  }
+  updateHUD();
+  return totalDist;
+}
+function onBallStopped(){
+  recomputeAim();
+  updateHUD();
+  if (mode==='motion' && screen==='playing') unlockGrip();
+}
+function penalizeAndReset(kind){
+  strokes++;
+  showToast(kind==='water' ? 'Splash! +1 penalty' : 'Out of bounds — +1 penalty');
+  ball.x = shotStartPos.x; ball.y = shotStartPos.y;
+  ball.vx=0; ball.vy=0; ball.moving=false;
+  ball.traveled=0; ball.carryYards=0; ball.flightHeightMax=0;
+  recomputeAim();
+  updateHUD();
+  if (mode==='motion' && screen==='playing') unlockGrip();
+}
+function holeComplete(){
+  ball.vx=0; ball.vy=0; ball.moving=false;
+  scores[holeIdx] = strokes;
+  showHoleCompleteCard();
+}
+
+/* =========================================================
+   HUD / TOAST
+========================================================= */
+function updateHUD(){
+  document.getElementById('statStrokes').textContent = strokes;
+  const dist = Math.max(0, Math.hypot(ball.x-hole.green.cx, ball.y-hole.green.y));
+  document.getElementById('statYardage').textContent = Math.round(dist)+'y';
+  document.getElementById('statLie').textContent = lieName(terrainAt(ball.x,ball.y));
+}
+let toastTimer=null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* =========================================================
+   SCORECARD / OVERLAYS
+========================================================= */
+function scoreTag(strokesTaken, par){
+  const diff = strokesTaken-par;
+  if (strokesTaken===1) return "Hole in One!";
+  if (diff<=-2) return "Eagle";
+  if (diff===-1) return "Birdie";
+  if (diff===0) return "Par";
+  if (diff===1) return "Bogey";
+  if (diff===2) return "Double Bogey";
+  return diff+" over";
+}
+function showHoleCompleteCard(){
+  const card = document.getElementById('cardContent');
+  const isLastOfRound = playMode==='round' && holeIdx===HOLES.length-1;
+  let nextLabel = 'Next Hole';
+  if (playMode==='practice') nextLabel = 'Back to Holes';
+  else if (isLastOfRound) nextLabel = 'See Scorecard';
+  card.innerHTML = `
+    <div class="subline">Hole ${holeIdx+1} · Par ${hole.par}</div>
+    <div class="score-big">${strokes}</div>
+    <div class="score-tag">${scoreTag(strokes,hole.par)}</div>
+    <div><button class="btn" id="nextBtn">${nextLabel}</button></div>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('nextBtn').addEventListener('click', ()=>{
+    document.getElementById('overlay').classList.remove('show');
+    if (playMode==='practice'){ goToHoleSelect(); }
+    else if (isLastOfRound){ showFinalScorecard(); }
+    else { loadHole(holeIdx+1); }
+  }, {once:true});
+}
+function showFinalScorecard(){
+  const card = document.getElementById('cardContent');
+  let totalStrokes=0, totalPar=0, rows='';
+  HOLES.forEach((h,i)=>{
+    totalStrokes += scores[i]||0;
+    totalPar += h.par;
+    rows += `<tr><td>${i+1}</td><td>${h.par}</td><td>${scores[i]||0}</td></tr>`;
+  });
+  const diff = totalStrokes-totalPar;
+  const diffLabel = diff===0 ? 'Even par' : (diff>0 ? '+'+diff : diff);
+  card.innerHTML = `
+    <h2>Round Complete</h2>
+    <div class="subline">${diffLabel} · ${totalStrokes} strokes</div>
+    <table class="scorecard">
+      <tr><th>Hole</th><th>Par</th><th>Score</th></tr>
+      ${rows}
+      <tr><td>Total</td><td>${totalPar}</td><td>${totalStrokes}</td></tr>
+    </table>
+    <button class="btn" id="againBtn">Play Again</button><br/>
+    <button class="btn secondary" id="menuBtn2">Main Menu</button>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('againBtn').addEventListener('click', ()=>{
+    document.getElementById('overlay').classList.remove('show');
+    scores = []; loadHole(0);
+  }, {once:true});
+  document.getElementById('menuBtn2').addEventListener('click', ()=>{
+    document.getElementById('overlay').classList.remove('show');
+    scores = []; goToMenu();
+  }, {once:true});
+}
+
+/* =========================================================
+   SCREEN NAVIGATION
+========================================================= */
+function showOnly(id){
+  ['menuScreen','holeSelectScreen','gameScreen'].forEach(sid=>{
+    document.getElementById(sid).classList.toggle('hidden', sid!==id);
+  });
+}
+function goToMenu(){ screen='menu'; showOnly('menuScreen'); }
+function goToHoleSelect(){ screen='holeSelect'; renderHoleList(); showOnly('holeSelectScreen'); }
+function enterPlaying(idx, pm){
+  playMode = pm;
+  screen = 'playing';
+  showOnly('gameScreen');
+  if (!threeInitialized) initThree();
+  fitRenderer();
+  loadHole(idx);
+}
+function renderHoleList(){
+  const list = document.getElementById('holeList');
+  list.innerHTML = '';
+  HOLES.forEach((h,i)=>{
+    const card = document.createElement('div');
+    card.className = 'hole-card';
+    card.innerHTML = `<div class="hc-num">${i+1}</div><div class="hc-info"><div class="hc-par">Par ${h.par}</div><div class="hc-yards">${h.length}y</div></div><div class="hc-go">▸</div>`;
+    card.addEventListener('click', ()=> enterPlaying(i,'practice'));
+    list.appendChild(card);
+  });
+}
+
+document.getElementById('playRoundBtn').addEventListener('click', ()=>{ scores=[]; enterPlaying(0,'round'); });
+document.getElementById('chooseHoleBtn').addEventListener('click', goToHoleSelect);
+document.getElementById('backToMenuBtn').addEventListener('click', goToMenu);
+document.getElementById('playFullRoundBtn').addEventListener('click', ()=>{ scores=[]; enterPlaying(0,'round'); });
+document.getElementById('gameBackBtn').addEventListener('click', ()=>{
+  if (playMode==='practice') goToHoleSelect(); else goToMenu();
+});
+
+/* =========================================================
+   HOLE LOADING
+========================================================= */
+function loadHole(idx){
+  holeIdx = idx;
+  hole = HOLES[idx];
+  strokes = 0;
+  resetBallToTee();
+  recomputeAim();
+  document.getElementById('holeNum').textContent = idx+1;
+  document.getElementById('holePar').textContent = 'Par ' + hole.par;
+  buildCourseMeshes();
+  camPanCenter.copy(worldToThree(ball.x, ball.y, 0));
+  camViewYards = 58; camViewYardsTarget = 58;
+  updateCameraFrustum();
+  updateHUD();
+  applyModeUI();
+  swingArmed = false;
+  clearTimeout(swingTimeoutHandle);
+  if (mode==='motion') unlockGrip(); else setSwingStatus('', false);
+}
+
+/* =========================================================
+   MAIN LOOP
+========================================================= */
+let lastT = null;
+function frame(ts){
+  if (lastT===null) lastT = ts;
+  const dt = Math.min(48, ts-lastT);
+  lastT = ts;
+  if (screen==='playing' && threeInitialized){
+    const dist = physicsStep(dt);
+    syncBallVisual(dist);
+    updateCameraTransform();
+    updateAimVisualPerFrame();
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+maybePromptMotionPermission();
+
+</script>
+</body>
+</html>
