@@ -189,14 +189,42 @@
     padding:10px 10px calc(10px + env(safe-area-inset-bottom));
     background:var(--paper); border-top:3px dashed var(--sand-dark); z-index:5;
   }
-  .club-btn{
-    flex:1; background:var(--fairway-dark); color:var(--paper);
-    border:2px solid transparent; border-radius:8px;
-    padding:9px 4px 7px; text-align:center; cursor:pointer; user-select:none;
+  #clubbar{
+    flex-shrink:0; display:flex; align-items:center; gap:8px;
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    background:var(--paper); border-top:3px dashed var(--sand-dark); z-index:5;
   }
-  .club-btn .name{ font-family:'Fraunces', serif; font-weight:600; font-size:14px; display:block; }
-  .club-btn .dist{ font-size:10px; opacity:0.75; letter-spacing:0.04em; }
-  .club-btn.active{ background:var(--gold); color:var(--ink); border-color:var(--ink); }
+  .club-arrow{
+    width:42px; height:42px; border-radius:50%; flex-shrink:0;
+    background:var(--fairway-dark); color:var(--paper); border:none;
+    font-size:20px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .club-arrow:active{ transform:scale(0.92); }
+  #clubCurrent{
+    flex:1; text-align:center; cursor:pointer; padding:6px 4px; border-radius:8px;
+    background:rgba(32,74,50,0.07); border:2px solid transparent;
+  }
+  #clubCurrent:active{ background:rgba(32,74,50,0.14); }
+  .cc-name{ font-family:'Fraunces', serif; font-weight:700; font-size:16px; color:var(--ink); }
+  .cc-dist{ font-size:11px; color:var(--fairway-dark); letter-spacing:0.05em; text-transform:uppercase; }
+  #clubBagBtn{
+    flex-shrink:0; background:var(--gold); color:var(--ink); border:none;
+    border-radius:20px; padding:11px 14px; font-family:'JetBrains Mono', monospace;
+    font-weight:700; font-size:12px; letter-spacing:0.02em; cursor:pointer;
+  }
+  #clubBagBtn:active{ transform:scale(0.96); }
+
+  .bag-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0 18px; }
+  .bag-item{
+    background:var(--fairway-dark); color:var(--paper); border-radius:10px;
+    padding:10px 4px; cursor:pointer; border:2px solid transparent; text-align:center;
+  }
+  .bag-item:active{ transform:scale(0.96); }
+  .bag-short{ font-family:'Fraunces', serif; font-weight:700; font-size:17px; }
+  .bag-name{ font-size:9px; letter-spacing:0.03em; text-transform:uppercase; opacity:0.85; margin-top:3px; }
+  .bag-dist{ font-size:9px; opacity:0.7; margin-top:2px; }
+  .bag-item.bag-active{ background:var(--gold); color:var(--ink); border-color:var(--ink); }
 
   /* ================= OVERLAY ================= */
   #overlay{
@@ -289,10 +317,13 @@
     </div>
 
     <div id="clubbar">
-      <div class="club-btn" data-club="driver"><span class="name">Driver</span><span class="dist">~230y</span></div>
-      <div class="club-btn" data-club="iron"><span class="name">Iron</span><span class="dist">~150y</span></div>
-      <div class="club-btn active" data-club="wedge"><span class="name">Wedge</span><span class="dist">~80y</span></div>
-      <div class="club-btn" data-club="putter"><span class="name">Putter</span><span class="dist">~15y</span></div>
+      <button class="club-arrow" id="clubPrevBtn">‹</button>
+      <div id="clubCurrent">
+        <div class="cc-name" id="clubCurrentName">Pitching Wedge</div>
+        <div class="cc-dist" id="clubCurrentDist">~95y</div>
+      </div>
+      <button class="club-arrow" id="clubNextBtn">›</button>
+      <button id="clubBagBtn">🎒 Bag</button>
     </div>
   </div>
 
@@ -358,11 +389,15 @@ const HOLES = [
 ];
 
 const CLUBS = {
-  driver: { label:"Driver", v0:2.75, spreadDeg:8,   maxYards:230, swing:{min:6,  max:26}, flight:{carryFrac:0.72, heightCoef:0.055} },
-  iron:   { label:"Iron",   v0:1.80, spreadDeg:4.5, maxYards:150, swing:{min:5,  max:20}, flight:{carryFrac:0.68, heightCoef:0.080} },
-  wedge:  { label:"Wedge",  v0:0.97, spreadDeg:3,   maxYards:80,  swing:{min:3,  max:13}, flight:{carryFrac:0.82, heightCoef:0.130} },
-  putter: { label:"Putter", v0:0.23, spreadDeg:1,   maxYards:15,  swing:{min:0.8,max:5},  flight:{carryFrac:0,    heightCoef:0} }
+  driver: { label:"Driver",     short:"DR", v0:2.76, spreadDeg:8.0, maxYards:230, swing:{min:6.0, max:26}, flight:{carryFrac:0.72, heightCoef:0.055} },
+  wood3:  { label:"3-Wood",     short:"3W", v0:2.34, spreadDeg:6.5, maxYards:195, swing:{min:5.3, max:23}, flight:{carryFrac:0.74, heightCoef:0.065} },
+  hybrid: { label:"Hybrid",     short:"HY", v0:2.04, spreadDeg:5.5, maxYards:170, swing:{min:4.6, max:20}, flight:{carryFrac:0.70, heightCoef:0.080} },
+  iron7:  { label:"7-Iron",     short:"7i", v0:1.68, spreadDeg:4.0, maxYards:140, swing:{min:4.0, max:17}, flight:{carryFrac:0.68, heightCoef:0.100} },
+  pw:     { label:"P-Wedge",    short:"PW", v0:1.14, spreadDeg:3.0, maxYards:95,  swing:{min:2.6, max:11}, flight:{carryFrac:0.80, heightCoef:0.160} },
+  sw:     { label:"S-Wedge",    short:"SW", v0:0.66, spreadDeg:2.5, maxYards:55,  swing:{min:2.0, max:9},  flight:{carryFrac:0.85, heightCoef:0.200} },
+  putter: { label:"Putter",     short:"PT", v0:0.24, spreadDeg:1.0, maxYards:15,  swing:{min:0.8, max:5},  flight:{carryFrac:0,    heightCoef:0} }
 };
+const CLUB_ORDER = ['driver','wood3','hybrid','iron7','pw','sw','putter'];
 
 const FRICTION = { fairway:0.988, green:0.984, rough:0.950, bunker:0.840 };
 
@@ -384,7 +419,7 @@ let ball = { x:0, y:0, vx:0, vy:0, moving:false, traveled:0, carryYards:0, fligh
 let shotStartPos = { x:0, y:0 };
 let strokes = 0;
 let scores = [];
-let currentClub = "wedge";
+let currentClub = "pw";
 
 let aiming = false;
 let aimStart = null, aimCurrent = null;
@@ -402,7 +437,7 @@ let motionPermissionGranted = false;
 let motionListenerAttached = false;
 
 let swingArmed=false, swingHasStarted=false, swingPeak=0, swingDecayCount=0, swingTimeoutHandle=null;
-let gravityBaseline = 9.81;
+let gBaseX=0, gBaseY=0, gBaseZ=0, gBaseInit=false; // slow per-axis resting-orientation baseline
 let motionPromptResolved = false; // has the user answered the upfront permission prompt this session?
 
 /* ---- three.js ---- */
@@ -455,12 +490,77 @@ function lieName(t){
 }
 
 /* =========================================================
+   PROCEDURAL TEXTURES
+========================================================= */
+let TEX = null;
+function makeCanvasTexture(size, drawFn){
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  drawFn(ctx, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+function buildTextures(){
+  // fairway: a light/dark stripe pair, mapped with raw-yard UVs so stripes
+  // read as consistent mowed bands regardless of hole length
+  const fairway = makeCanvasTexture(64, (ctx,s)=>{
+    ctx.fillStyle = '#356f49'; ctx.fillRect(0,0,s,s/2);
+    ctx.fillStyle = '#2c6842'; ctx.fillRect(0,s/2,s,s/2);
+  });
+  fairway.repeat.set(1, 1/10); // one stripe pair per 10 yards
+
+  // rough: dark, mottled, noisy green — feels coarser than the fairway
+  const rough = makeCanvasTexture(128, (ctx,s)=>{
+    ctx.fillStyle = '#173a22'; ctx.fillRect(0,0,s,s);
+    for (let i=0;i<1400;i++){
+      const x=Math.random()*s, y=Math.random()*s;
+      ctx.fillStyle = Math.random()<0.5 ? '#1f4a2c' : '#102c19';
+      ctx.globalAlpha = 0.25+Math.random()*0.35;
+      ctx.fillRect(x,y,1.6,1.6);
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // sand: warm speckled grain for bunkers
+  const sand = makeCanvasTexture(96, (ctx,s)=>{
+    ctx.fillStyle = '#e3c98a'; ctx.fillRect(0,0,s,s);
+    for (let i=0;i<900;i++){
+      const x=Math.random()*s, y=Math.random()*s;
+      ctx.fillStyle = Math.random()<0.5 ? '#d3b26a' : '#f2e0ac';
+      ctx.globalAlpha = 0.25+Math.random()*0.35;
+      ctx.fillRect(x,y,1.4,1.4);
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // green: noticeably lighter than the fairway, with faint concentric mow rings
+  const green = makeCanvasTexture(256, (ctx,s)=>{
+    ctx.fillStyle = '#4fae74'; ctx.fillRect(0,0,s,s);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 2;
+    const cx=s/2, cy=s/2;
+    for (let r=6;r<s*0.72;r+=9){
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+    }
+  });
+  green.wrapS = THREE.ClampToEdgeWrapping;
+  green.wrapT = THREE.ClampToEdgeWrapping;
+
+  TEX = { fairway, rough, sand, green };
+}
+
+/* =========================================================
    THREE.JS SETUP
 ========================================================= */
 function initThree(){
   const canvasEl = document.getElementById('three-canvas');
   renderer = new THREE.WebGLRenderer({ canvas:canvasEl, antialias:true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+
+  buildTextures();
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#bfe0e6');
@@ -571,24 +671,27 @@ function buildCourseMeshes(){
 
   const roughGeo = new THREE.PlaneGeometry(420, hole.length+280);
   roughGeo.rotateX(-Math.PI/2);
-  const roughMesh = new THREE.Mesh(roughGeo, new THREE.MeshStandardMaterial({ color:'#204a32', flatShading:true, roughness:1 }));
+  const roughTex = TEX.rough.clone();
+  roughTex.needsUpdate = true;
+  roughTex.repeat.set(420/6, (hole.length+280)/6);
+  const roughMesh = new THREE.Mesh(roughGeo, new THREE.MeshStandardMaterial({ map:roughTex, flatShading:true, roughness:1 }));
   roughMesh.position.set(0,0,-(hole.length/2));
   courseGroup.add(roughMesh);
 
   courseGroup.add(buildFairwayMesh());
 
-  hole.bunkers.forEach(b=> courseGroup.add(buildEllipseMesh(b, '#e3c98a', 0.020)));
-  hole.water.forEach(w=> courseGroup.add(buildEllipseMesh(w, '#3d84a8', 0.018)));
+  hole.bunkers.forEach(b=> courseGroup.add(buildEllipseMesh(b, 0.020, TEX.sand, 3)));
+  hole.water.forEach(w=> courseGroup.add(buildEllipseMesh(w, 0.018, null, 1, '#3d84a8')));
 
-  courseGroup.add(buildCircleMesh(hole.green.cx, hole.green.y, hole.green.r, '#3f8156', 0.024));
-  courseGroup.add(buildCircleMesh(hole.green.cx, hole.green.y, HOLE_RADIUS, '#0c1610', 0.026));
+  courseGroup.add(buildCircleMesh(hole.green.cx, hole.green.y, hole.green.r, 0.024, TEX.green));
+  courseGroup.add(buildCircleMesh(hole.green.cx, hole.green.y, HOLE_RADIUS, 0.026, null, '#0c1610'));
 
   courseGroup.add(buildFlag());
   courseGroup.add(buildTrees());
 }
 
 function buildFairwayMesh(){
-  const positions=[], indices=[];
+  const positions=[], uvs=[], indices=[];
   const step=4;
   const ys=[];
   for (let y=-2; y<=hole.length+2; y+=step) ys.push(y);
@@ -597,6 +700,7 @@ function buildFairwayMesh(){
     const fw = hole.fairway(y);
     positions.push(fw.cx-fw.hw, 0.015, -y);
     positions.push(fw.cx+fw.hw, 0.015, -y);
+    uvs.push(0, y, 1, y);
   });
   for (let i=0;i<ys.length-1;i++){
     const a=i*2,b=i*2+1,c=(i+1)*2,d=(i+1)*2+1;
@@ -604,24 +708,41 @@ function buildFairwayMesh(){
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs,2));
   geo.setIndex(indices);
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ color:'#2f6b45', flatShading:true, roughness:0.95 });
+  const tex = TEX.fairway.clone();
+  tex.needsUpdate = true;
+  tex.repeat.set(1, 1/10);
+  const mat = new THREE.MeshStandardMaterial({ map:tex, flatShading:true, roughness:0.95 });
   return new THREE.Mesh(geo, mat);
 }
-function buildEllipseMesh(e, colorHex, heightY){
+function buildEllipseMesh(e, heightY, texture, repeatCount, fallbackColor){
   const geo = new THREE.CircleGeometry(1,28);
   geo.rotateX(-Math.PI/2);
-  const mat = new THREE.MeshStandardMaterial({ color:colorHex, flatShading:true, roughness:0.9 });
+  let mat;
+  if (texture){
+    const tex = texture.clone();
+    tex.needsUpdate = true;
+    tex.repeat.set(repeatCount||1, repeatCount||1);
+    mat = new THREE.MeshStandardMaterial({ map:tex, flatShading:true, roughness:0.9 });
+  } else {
+    mat = new THREE.MeshStandardMaterial({ color: fallbackColor||'#3d84a8', flatShading:true, roughness:0.55, metalness:0.05 });
+  }
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(e.cx, heightY, -e.y);
   mesh.scale.set(e.rx, 1, e.ry);
   return mesh;
 }
-function buildCircleMesh(cx,y,r,colorHex,heightY){
+function buildCircleMesh(cx,y,r,heightY,texture,fallbackColor){
   const geo = new THREE.CircleGeometry(r,32);
   geo.rotateX(-Math.PI/2);
-  const mat = new THREE.MeshStandardMaterial({ color:colorHex, flatShading:true, roughness:0.85 });
+  let mat;
+  if (texture){
+    mat = new THREE.MeshStandardMaterial({ map:texture, flatShading:true, roughness:0.8 });
+  } else {
+    mat = new THREE.MeshStandardMaterial({ color: fallbackColor||'#0c1610', flatShading:true, roughness:0.85 });
+  }
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(cx, heightY, -y);
   return mesh;
@@ -782,14 +903,52 @@ function updateAimVisualPerFrame(){
 /* =========================================================
    CLUB SELECT / MODE TOGGLE
 ========================================================= */
-document.querySelectorAll('.club-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    if (ball.moving || swingArmed) return;
-    document.querySelectorAll('.club-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    currentClub = btn.dataset.club;
+function updateClubDisplay(){
+  const c = CLUBS[currentClub];
+  document.getElementById('clubCurrentName').textContent = c.label;
+  document.getElementById('clubCurrentDist').textContent = '~'+c.maxYards+'y';
+}
+function cycleClub(dir){
+  if (ball.moving || swingArmed) return;
+  let idx = CLUB_ORDER.indexOf(currentClub);
+  idx = (idx+dir+CLUB_ORDER.length) % CLUB_ORDER.length;
+  currentClub = CLUB_ORDER[idx];
+  updateClubDisplay();
+}
+document.getElementById('clubPrevBtn').addEventListener('click', ()=>cycleClub(-1));
+document.getElementById('clubNextBtn').addEventListener('click', ()=>cycleClub(1));
+document.getElementById('clubCurrent').addEventListener('click', ()=>{ if(!ball.moving && !swingArmed) showClubBag(); });
+document.getElementById('clubBagBtn').addEventListener('click', ()=>{ if(!ball.moving && !swingArmed) showClubBag(); });
+
+function showClubBag(){
+  const card = document.getElementById('cardContent');
+  const items = CLUB_ORDER.map(key=>{
+    const c = CLUBS[key];
+    const activeCls = key===currentClub ? ' bag-active' : '';
+    return `<div class="bag-item${activeCls}" data-club="${key}">
+      <div class="bag-short">${c.short}</div>
+      <div class="bag-name">${c.label}</div>
+      <div class="bag-dist">~${c.maxYards}y</div>
+    </div>`;
+  }).join('');
+  card.innerHTML = `
+    <div class="subline">Your Bag</div>
+    <h2>Choose a Club</h2>
+    <div class="bag-grid">${items}</div>
+    <button class="btn secondary" id="bagCloseBtn">Close</button>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  card.querySelectorAll('.bag-item').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      currentClub = el.dataset.club;
+      updateClubDisplay();
+      document.getElementById('overlay').classList.remove('show');
+    });
   });
-});
+  document.getElementById('bagCloseBtn').addEventListener('click', ()=>{
+    document.getElementById('overlay').classList.remove('show');
+  }, {once:true});
+}
 
 const modeBtn = document.getElementById('modeToggle');
 modeBtn.addEventListener('click', ()=>{
@@ -985,26 +1144,38 @@ function armSwing(){
 }
 
 function handleMotion(e){
-  if (!swingArmed) return;
-  let ax,ay,az, usingGravityIncl=false;
+  let ax,ay,az;
   if (e.acceleration && e.acceleration.x != null){
     ax=e.acceleration.x; ay=e.acceleration.y; az=e.acceleration.z;
   } else if (e.accelerationIncludingGravity){
     ax=e.accelerationIncludingGravity.x; ay=e.accelerationIncludingGravity.y; az=e.accelerationIncludingGravity.z;
-    usingGravityIncl = true;
   } else return;
 
-  let mag = Math.sqrt(ax*ax+ay*ay+az*az);
-  if (usingGravityIncl){
-    gravityBaseline += (mag-gravityBaseline)*0.02;
-    mag = Math.abs(mag-gravityBaseline);
+  if (!gBaseInit){ gBaseX=ax; gBaseY=ay; gBaseZ=az; gBaseInit=true; }
+
+  if (!swingArmed){
+    // keep tracking the resting orientation right up until the moment you arm,
+    // so gravity/tilt is cleanly removed from whatever pose you're holding the phone in
+    gBaseX += (ax-gBaseX)*0.03;
+    gBaseY += (ay-gBaseY)*0.03;
+    gBaseZ += (az-gBaseZ)*0.03;
+    return;
   }
+
+  const rx = ax-gBaseX, ry = ay-gBaseY, rz = az-gBaseZ;
+  // rx/rz = side-to-side + forward-back (the horizontal swing plane), ry = up/down along the phone.
+  // A real golf swing is dominated by the horizontal plane, so we reward that and
+  // actively discount vertical (up/down bounce) motion rather than just measuring total magnitude.
+  const horizontalMag = Math.sqrt(rx*rx + rz*rz);
+  const verticalMag = Math.abs(ry);
+  const swingSignal = Math.max(0, horizontalMag - verticalMag*0.6);
+
   const th = currentSwingThresholds();
   const startThresh = th.min*0.5;
   if (!swingHasStarted){
-    if (mag > startThresh){ swingHasStarted=true; swingPeak=mag; swingDecayCount=0; }
+    if (swingSignal > startThresh){ swingHasStarted=true; swingPeak=swingSignal; swingDecayCount=0; }
   } else {
-    if (mag > swingPeak){ swingPeak=mag; swingDecayCount=0; }
+    if (swingSignal > swingPeak){ swingPeak=swingSignal; swingDecayCount=0; }
     else {
       swingDecayCount++;
       if (swingDecayCount>4 && swingPeak > startThresh*1.3){
@@ -1264,6 +1435,7 @@ function frame(ts){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+updateClubDisplay();
 maybePromptMotionPermission();
 
 </script>
